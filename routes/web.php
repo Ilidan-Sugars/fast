@@ -1,25 +1,21 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AdminAuthController;
-use App\Http\Controllers\Api\ServiceController;
-use App\Http\Controllers\Api\VacancyController;
-use App\Http\Controllers\Web\AdminPageController;
+use Laravel\Fortify\Features;
+use App\Http\Controllers\AdminController;
 
-Route::get('/', [AdminPageController::class, 'home'])->name('home');
-Route::get('/admin/login', [AdminPageController::class, 'login'])->name('login');
+Route::inertia('/', 'Welcome', [
+    'canRegister' => Features::enabled(Features::registration()),
+])->name('home');
 
-Route::middleware(['auth'])->group(function () {
-    Route::get('/admin', [AdminPageController::class, 'panel'])->name('admin.panel');
-    Route::post('/admin/logout', function () {
-        auth()->logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-        return redirect('/');
-    })->name('admin.logout');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
-    Route::post('/api/services', [ServiceController::class, 'store']);
-    Route::post('/api/vacancies', [VacancyController::class, 'store']);
+    Route::get('admin', [AdminController::class, 'index'])
+        ->name('admin');
+
+    Route::post('admin/users/{user}/toggle-role', [AdminController::class, 'toggleRole'])
+        ->name('admin.users.toggle-role');
 });
 
-Route::post('/api/admin/login', [AdminAuthController::class, 'login']);
+require __DIR__.'/settings.php';

@@ -1,25 +1,61 @@
-import { getCsrfToken } from './csrf'
+/**
+ * shared/lib/fetch.ts
+ * Утилиты для API запросов
+ */
 
-export async function postJson<T>(url: string, data: Record<string, any>): Promise<T> {
-  const token = getCsrfToken()
+interface FetchOptions extends RequestInit {
+  timeout?: number
+}
+
+/**
+ * POST запрос с JSON телом
+ */
+export async function postJson<T = unknown>(
+  url: string,
+  data: Record<string, any>,
+  options?: FetchOptions
+): Promise<T> {
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+      'X-CSRF-Token': token || '',
+      ...options?.headers,
     },
-    credentials: 'same-origin',
     body: JSON.stringify(data),
+    ...options,
   })
 
-  const payload = await response.json().catch(() => ({}))
-
   if (!response.ok) {
-    const error = new Error(payload.message || 'Request failed')
-    Object.assign(error, { status: response.status, body: payload })
-    throw error
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+    throw new Error(error.message || `HTTP ${response.status}`)
   }
 
-  return payload as T
+  return response.json()
+}
+
+/**
+ * GET запрос
+ */
+export async function getJson<T = unknown>(
+  url: string,
+  options?: FetchOptions
+): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    ...options,
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  return response.json()
 }
